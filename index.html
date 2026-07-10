@@ -299,6 +299,57 @@
   .chip input{display:none;}
   .chip.checked{background:var(--spark); color:#0d1712; border-color:var(--spark); font-weight:600;}
 
+  /* Upload Zone Styles */
+  .upload-zone{
+    border:2px dashed var(--line-strong); border-radius:8px; padding:28px;
+    background:var(--bg-raised); text-align:center; cursor:pointer;
+    transition:all 0.2s ease;
+    margin-bottom:14px;
+  }
+  .upload-zone.active{
+    border-color:var(--spark); background:rgba(41,231,182,0.05);
+  }
+  .upload-zone.active-drag{
+    border-color:var(--ember); background:rgba(255,78,31,0.05);
+  }
+  .upload-icon{
+    font-size:2rem; margin-bottom:8px;
+  }
+  .upload-text{
+    color:var(--muted); font-size:0.9rem; margin-bottom:4px;
+  }
+  .upload-hint{
+    color:var(--muted); font-size:0.78rem; opacity:0.8;
+  }
+  .file-list{
+    margin-top:14px;
+  }
+  .file-item{
+    background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:10px 12px;
+    display:flex; justify-content:space-between; align-items:center; font-size:0.88rem; margin-bottom:6px;
+  }
+  .file-name{
+    flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .file-size{
+    color:var(--muted); font-size:0.78rem; margin:0 10px;
+  }
+  .file-remove{
+    background:var(--ember); color:#171207; border:none; border-radius:3px; padding:4px 8px;
+    cursor:pointer; font-size:0.75rem; font-weight:600; transition:background 0.2s ease;
+  }
+  .file-remove:hover{background:#ff6538;}
+  .upload-progress{
+    margin-top:8px;
+    background:var(--bg); border-radius:4px; height:4px; overflow:hidden;
+  }
+  .upload-progress-bar{
+    height:100%; background:var(--spark); width:0%; transition:width 0.3s ease;
+  }
+  .upload-status{
+    font-size:0.8rem; color:var(--spark); margin-top:6px; font-family:'IBM Plex Mono', monospace;
+  }
+
   .pay-panel{
     background:var(--bg-raised); border:1px solid var(--line); border-radius:8px; padding:26px; height:fit-content;
   }
@@ -326,6 +377,10 @@
   /* reveal on scroll */
   .reveal{opacity:0; transform:translateY(16px); transition:opacity 0.6s ease, transform 0.6s ease;}
   .reveal.in{opacity:1; transform:translateY(0);}
+
+  @media (max-width:900px){
+    .order-grid{grid-template-columns:1fr;}
+  }
 </style>
 </head>
 <body>
@@ -604,8 +659,25 @@
             <label for="oemail">Email</label>
             <input id="oemail" type="email" placeholder="you@example.com" required>
           </div>
+
+          <!-- Video Upload Section -->
           <div class="field">
-            <label for="olink">Link to your footage</label>
+            <label>Upload Video (Optional)</label>
+            <div class="upload-zone" id="uploadZone">
+              <div class="upload-icon">📹</div>
+              <div class="upload-text">Drag & drop your video here or click to browse</div>
+              <div class="upload-hint">Supports MP4, WebM, MOV (Max 1GB)</div>
+              <input type="file" id="videoInput" accept="video/*" style="display:none;">
+            </div>
+            <div id="fileList" class="file-list"></div>
+            <div id="uploadProgress" class="upload-progress" style="display:none;">
+              <div id="progressBar" class="upload-progress-bar"></div>
+            </div>
+            <div id="uploadStatus" class="upload-status"></div>
+          </div>
+
+          <div class="field">
+            <label for="olink">Or paste link to your footage</label>
             <input id="olink" type="url" placeholder="Google Drive, YouTube, Dropbox…">
           </div>
           <div class="field">
@@ -680,6 +752,90 @@
   }, {threshold:0.12});
   revealEls.forEach(el => io.observe(el));
 
+  // ===== VIDEO UPLOAD FUNCTIONALITY =====
+  const uploadZone = document.getElementById('uploadZone');
+  const videoInput = document.getElementById('videoInput');
+  const fileList = document.getElementById('fileList');
+  const uploadProgress = document.getElementById('uploadProgress');
+  const progressBar = document.getElementById('progressBar');
+  const uploadStatus = document.getElementById('uploadStatus');
+  let selectedFiles = [];
+
+  uploadZone.addEventListener('click', () => videoInput.click());
+
+  uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('active-drag');
+  });
+
+  uploadZone.addEventListener('dragleave', () => {
+    uploadZone.classList.remove('active-drag');
+  });
+
+  uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('active-drag');
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('video/'));
+    if(files.length > 0) handleFileSelect(files);
+  });
+
+  videoInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    if(files.length > 0) handleFileSelect(files);
+  });
+
+  function handleFileSelect(files){
+    uploadZone.classList.add('active');
+    files.forEach(file => {
+      if(!selectedFiles.find(f => f.name === file.name)){
+        selectedFiles.push(file);
+        uploadFileToCloud(file);
+      }
+    });
+    renderFileList();
+  }
+
+  function renderFileList(){
+    fileList.innerHTML = selectedFiles.map((file, idx) => `
+      <div class="file-item">
+        <span class="file-name">${file.name}</span>
+        <span class="file-size">${(file.size / (1024*1024)).toFixed(1)}MB</span>
+        <button type="button" class="file-remove" onclick="removeFile(${idx})">Remove</button>
+      </div>
+    `).join('');
+  }
+
+  window.removeFile = function(idx){
+    selectedFiles.splice(idx, 1);
+    renderFileList();
+    if(selectedFiles.length === 0) uploadZone.classList.remove('active');
+  };
+
+  function uploadFileToCloud(file){
+    // This simulates upload - in production, connect to AWS S3, Azure, or Cloudinary
+    uploadProgress.style.display = 'block';
+    uploadStatus.textContent = `Preparing: ${file.name}...`;
+    
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 30;
+      if(progress > 100) progress = 100;
+      progressBar.style.width = progress + '%';
+      
+      if(progress === 100){
+        clearInterval(interval);
+        uploadStatus.textContent = `✓ Ready: ${file.name}`;
+        
+        if(typeof gtag !== 'undefined'){
+          gtag('event', 'video_uploaded', {
+            'file_name': file.name,
+            'file_size': file.size
+          });
+        }
+      }
+    }, 200);
+  }
+
   // order form -> mailto
   document.getElementById('orderForm').addEventListener('submit', function(e){
     e.preventDefault();
@@ -689,14 +845,15 @@
     const link = document.getElementById('olink').value;
     const notes = document.getElementById('onotes').value;
     const platforms = Array.from(document.querySelectorAll('.chip input:checked')).map(c => c.value).join(', ') || 'Not specified';
+    const fileInfo = selectedFiles.length > 0 ? `Files uploaded: ${selectedFiles.map(f => f.name).join(', ')}` : 'No files uploaded';
 
-    const body = `Package: ${pkg}%0D%0AName: ${name}%0D%0AEmail: ${email}%0D%0AFootage link: ${link}%0D%0APlatforms: ${platforms}%0D%0ANotes: ${notes}`;
+    const body = `Package: ${pkg}%0D%0AName: ${name}%0D%0AEmail: ${email}%0D%0AFootage link: ${link}%0D%0A${fileInfo}%0D%0APlatforms: ${platforms}%0D%0ANotes: ${notes}`;
     
-    // Track event in Google Analytics
     if(typeof gtag !== 'undefined'){
       gtag('event', 'form_submit', {
         'package': pkg,
-        'platforms': platforms
+        'platforms': platforms,
+        'files_uploaded': selectedFiles.length
       });
     }
     

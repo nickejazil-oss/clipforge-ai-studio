@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment Tracker — ClipForge AI Studio</title>
+<meta name="description" content="Track your ClipForge orders and payment status in real-time.">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#121316;
+    --bg-alt:#1B1D22;
+    --bg-raised:#212329;
+    --ink:#F3F1EA;
+    --muted:#93959E;
+    --ember:#FF4E1F;
+    --spark:#29E7B6;
+    --success:#10B981;
+    --warning:#F59E0B;
+    --line:rgba(243,241,234,0.12);
+    --line-strong:rgba(243,241,234,0.22);
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:'Space Grotesk', sans-serif; font-weight:700; line-height:1.1;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  a{color:inherit; text-decoration:none;}
+  .wrap{max-width:1160px; margin:0 auto; padding:0 28px;}
+
+  /* NAV */
+  .nav{
+    background:rgba(18,19,22,0.95); border-bottom:1px solid var(--line);
+    padding:16px 0; position:sticky; top:0; z-index:100;
+  }
+  .nav-inner{
+    display:flex; justify-content:space-between; align-items:center;
+    max-width:1160px; margin:0 auto; padding:0 28px;
+  }
+  .brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:1.1rem;}
+  .nav-links{display:flex; gap:24px; align-items:center;}
+  .nav-links a{color:var(--muted); font-size:0.9rem; transition:color 0.2s;}
+  .nav-links a:hover{color:var(--ink);}
+  .nav-back{background:var(--ember); color:#171207 !important; padding:8px 16px; border-radius:3px; font-weight:600; font-size:0.85rem;}
+
+  /* MAIN LAYOUT */
+  .container{padding:40px 0;}
+  .header{margin-bottom:40px;}
+  .header h1{font-size:2rem; margin-bottom:10px;}
+  .header p{color:var(--muted); font-size:1rem;}
+
+  /* TABS */
+  .tabs{display:flex; gap:16px; border-bottom:1px solid var(--line); margin-bottom:28px;}
+  .tab{
+    padding:12px 0; border-bottom:2px solid transparent; cursor:pointer;
+    color:var(--muted); font-weight:500; transition:all 0.2s;
+  }
+  .tab.active{color:var(--spark); border-bottom-color:var(--spark);}
+  .tab:hover{color:var(--ink);}
+
+  /* FILTERS */
+  .filters{display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap;}
+  .filter-btn{
+    background:var(--bg-raised); border:1px solid var(--line);
+    padding:8px 14px; border-radius:4px; font-size:0.85rem;
+    cursor:pointer; transition:all 0.2s;
+  }
+  .filter-btn.active{background:var(--spark); color:#0d1712; border-color:var(--spark);}
+  .filter-btn:hover{border-color:var(--line-strong);}
+
+  /* SEARCH */
+  .search-box{
+    background:var(--bg-raised); border:1px solid var(--line);
+    padding:10px 14px; border-radius:4px; width:100%; max-width:320px;
+    color:var(--ink); font-family:'Inter', sans-serif; font-size:0.9rem;
+  }
+  .search-box::placeholder{color:var(--muted);}
+
+  /* STATS */
+  .stats-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:32px;}
+  .stat-card{
+    background:var(--bg-raised); border:1px solid var(--line);
+    padding:20px; border-radius:8px; text-align:center;
+  }
+  .stat-value{font-size:1.8rem; font-weight:700; color:var(--spark); margin-bottom:4px;}
+  .stat-label{color:var(--muted); font-size:0.85rem;}
+
+  /* TABLE */
+  .table-wrap{overflow-x:auto;}
+  table{
+    width:100%; border-collapse:collapse; background:var(--bg-raised);
+    border:1px solid var(--line); border-radius:8px; overflow:hidden;
+  }
+  th{
+    background:var(--bg-alt); padding:14px; text-align:left;
+    font-weight:600; font-size:0.85rem; color:var(--muted);
+    border-bottom:1px solid var(--line);
+  }
+  td{padding:14px; border-bottom:1px solid var(--line); font-size:0.9rem;}
+  tr:hover{background:var(--bg);}
+  tr:last-child td{border-bottom:none;}
+
+  /* STATUS BADGES */
+  .badge{
+    display:inline-block; padding:4px 10px; border-radius:12px; font-size:0.78rem;
+    font-weight:600; font-family:'IBM Plex Mono', monospace;
+  }
+  .badge-pending{background:rgba(245,158,11,0.15); color:#F59E0B;}
+  .badge-processing{background:rgba(59,130,246,0.15); color:#3B82F6;}
+  .badge-paid{background:rgba(16,185,129,0.15); color:#10B981;}
+  .badge-failed{background:rgba(239,68,68,0.15); color:#EF4444;}
+
+  /* MODAL */
+  .modal{display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:200;}
+  .modal.active{display:flex; align-items:center; justify-content:center;}
+  .modal-content{
+    background:var(--bg-alt); border:1px solid var(--line);
+    border-radius:8px; padding:28px; max-width:600px; width:90%;
+  }
+  .modal h2{margin-bottom:16px;}
+  .modal p{color:var(--muted); margin-bottom:12px; font-size:0.95rem;}
+  .modal-buttons{display:flex; gap:12px; margin-top:20px;}
+  .btn{
+    padding:10px 18px; border-radius:4px; border:none;
+    font-weight:600; cursor:pointer; transition:all 0.2s;
+  }
+  .btn-primary{background:var(--ember); color:#171207;}
+  .btn-primary:hover{background:#ff6538;}
+  .btn-secondary{background:var(--bg-raised); color:var(--ink); border:1px solid var(--line);}
+  .btn-secondary:hover{background:var(--bg);}
+
+  /* FORMS */
+  .form-group{margin-bottom:16px;}
+  .form-group label{display:block; font-size:0.85rem; color:var(--muted); margin-bottom:6px;}
+  .form-group input, .form-group select{
+    width:100%; background:var(--bg); border:1px solid var(--line-strong);
+    padding:10px 12px; border-radius:4px; color:var(--ink); font-family:'Inter', sans-serif;
+  }
+  .form-group input:focus, .form-group select:focus{border-color:var(--spark); outline:none;}
+
+  /* EMPTY STATE */
+  .empty-state{
+    text-align:center; padding:60px 20px; color:var(--muted);
+  }
+  .empty-state-icon{font-size:3rem; margin-bottom:16px;}
+  .empty-state h3{color:var(--ink); margin-bottom:8px;}
+
+  /* FOOTER */
+  .footer{border-top:1px solid var(--line); padding:24px 0; margin-top:40px; text-align:center;}
+  .footer-text{color:var(--muted); font-size:0.85rem;}
+
+  @media (max-width:900px){
+    .stats-grid{grid-template-columns:repeat(2, 1fr);}
+    .nav-links{gap:12px; font-size:0.85rem;}
+  }
+  @media (max-width:600px){
+    .stats-grid{grid-template-columns:1fr;}
+    .header h1{font-size:1.5rem;}
+    .tabs{flex-wrap:wrap;}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      💰 Payment Tracker
+    </div>
+    <nav class="nav-links">
+      <a href="index.html" class="nav-back">← Back to Site</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div class="wrap">
+    <div class="header">
+      <h1>Payment Dashboard</h1>
+      <p>Track all your ClipForge orders, payments, and delivery status in one place.</p>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <div class="tab active" data-tab="orders">All Orders</div>
+      <div class="tab" data-tab="pending">Pending</div>
+      <div class="tab" data-tab="paid">Paid</div>
+      <div class="tab" data-tab="shipped">Shipped</div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="totalOrders">0</div>
+        <div class="stat-label">Total Orders</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="totalRevenue">$0</div>
+        <div class="stat-label">Total Revenue</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="pendingAmount">$0</div>
+        <div class="stat-label">Pending Payments</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="completedOrders">0</div>
+        <div class="stat-label">Completed</div>
+      </div>
+    </div>
+
+    <!-- FILTERS & SEARCH -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; gap:16px; flex-wrap:wrap;">
+      <div class="filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="recent">Last 30 Days</button>
+        <button class="filter-btn" data-filter="high-value">High Value (>$100)</button>
+      </div>
+      <input type="text" class="search-box" id="searchBox" placeholder="Search by email or order ID...">
+    </div>
+
+    <!-- ORDERS TABLE -->
+    <div class="table-wrap">
+      <table id="ordersTable">
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Customer</th>
+            <th>Package</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Payment</th>
+            <th>Date</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <!-- Populated by JavaScript -->
+        </tbody>
+      </table>
+    </div>
+
+    <div id="emptyState" class="empty-state" style="display:none;">
+      <div class="empty-state-icon">📋</div>
+      <h3>No orders yet</h3>
+      <p>Orders will appear here as they come in. New orders sync automatically.</p>
+    </div>
+  </div>
+</main>
+
+<!-- DETAIL MODAL -->
+<div id="detailModal" class="modal">
+  <div class="modal-content">
+    <h2 id="modalTitle">Order Details</h2>
+    <div id="modalBody"></div>
+    <div class="modal-buttons">
+      <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" id="modalAction">Mark as Paid</button>
+    </div>
+  </div>
+</div>
+
+<!-- UPDATE PAYMENT MODAL -->
+<div id="updateModal" class="modal">
+  <div class="modal-content">
+    <h2>Update Payment Status</h2>
+    <form id="updateForm" onsubmit="updatePaymentStatus(event)">
+      <div class="form-group">
+        <label>Payment Status</label>
+        <select id="paymentStatus" required>
+          <option value="">Select status...</option>
+          <option value="pending">Pending</option>
+          <option value="processing">Processing</option>
+          <option value="paid">Paid</option>
+          <option value="failed">Failed</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Payment Method</label>
+        <select id="paymentMethod" required>
+          <option value="">Select method...</option>
+          <option value="paypal">PayPal</option>
+          <option value="stripe">Stripe</option>
+          <option value="wise">Wise</option>
+          <option value="bank">Bank Transfer</option>
+          <option value="mpesa">M-PESA</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Transaction ID (Optional)</label>
+        <input type="text" id="transactionId" placeholder="e.g., TXN-12345">
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <input type="text" id="notes" placeholder="Add payment notes...">
+      </div>
+      <div class="modal-buttons">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Payment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="footer-text">ClipForge AI Studio © 2026 | Payment Tracker v1.0</div>
+</footer>
+
+<script>
+  // Sample data - replace with real API
+  let orders = JSON.parse(localStorage.getItem('clipforge_orders')) || [
+    {
+      id: 'ORD-001',
+      customer: 'John Doe',
+      email: 'john@example.com',
+      package: '10 Short Videos — $75',
+      amount: 75,
+      status: 'pending',
+      payment: 'pending',
+      method: 'paypal',
+      date: new Date(Date.now() - 5*24*60*60*1000).toLocaleDateString(),
+      platforms: 'TikTok, Instagram Reels',
+      notes: 'Podcast clips needed'
+    },
+    {
+      id: 'ORD-002',
+      customer: 'Jane Smith',
+      email: 'jane@example.com',
+      package: '5 Short Videos — $30',
+      amount: 30,
+      status: 'shipped',
+      payment: 'paid',
+      method: 'stripe',
+      date: new Date(Date.now() - 2*24*60*60*1000).toLocaleDateString(),
+      platforms: 'YouTube Shorts',
+      notes: 'Interview clips'
+    },
+    {
+      id: 'ORD-003',
+      customer: 'Mike Johnson',
+      email: 'mike@example.com',
+      package: '20 Short Videos — $150',
+      amount: 150,
+      status: 'processing',
+      payment: 'processing',
+      method: 'wise',
+      date: new Date(Date.now() - 1*24*60*60*1000).toLocaleDateString(),
+      platforms: 'All platforms',
+      notes: 'Webinar recordings'
+    }
+  ];
+
+  let currentOrderId = null;
+  let activeTab = 'orders';
+  let activeFilter = 'all';
+
+  // Initialize
+  document.addEventListener('DOMContentLoaded', () => {
+    setupTabs();
+    setupFilters();
+    setupSearch();
+    renderOrders();
+    updateStats();
+  });
+
+  function setupTabs(){
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        activeTab = tab.dataset.tab;
+        renderOrders();
+      });
+    });
+  }
+
+  function setupFilters(){
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeFilter = btn.dataset.filter;
+        renderOrders();
+      });
+    });
+  }
+
+  function setupSearch(){
+    document.getElementById('searchBox').addEventListener('input', (e) => {
+      renderOrders(e.target.value.toLowerCase());
+    });
+  }
+
+  function getFilteredOrders(search = ''){
+    let filtered = orders;
+
+    // Apply tab filter
+    if(activeTab !== 'orders') filtered = filtered.filter(o => o.status === activeTab);
+
+    // Apply date filter
+    if(activeFilter === 'recent'){
+      const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000);
+      filtered = filtered.filter(o => new Date(o.date) >= thirtyDaysAgo);
+    }
+
+    // Apply value filter
+    if(activeFilter === 'high-value') filtered = filtered.filter(o => o.amount > 100);
+
+    // Apply search
+    if(search) filtered = filtered.filter(o => 
+      o.email.includes(search) || o.id.includes(search) || o.customer.includes(search)
+    );
+
+    return filtered;
+  }
+
+  function renderOrders(search = ''){
+    const filtered = getFilteredOrders(search);
+    const tbody = document.getElementById('tableBody');
+    const empty = document.getElementById('emptyState');
+
+    if(filtered.length === 0){
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+
+    empty.style.display = 'none';
+    tbody.innerHTML = filtered.map(order => `
+      <tr>
+        <td class="mono">${order.id}</td>
+        <td><strong>${order.customer}</strong><br><span style="color:var(--muted); font-size:0.85rem;">${order.email}</span></td>
+        <td>${order.package}</td>
+        <td><strong>$${order.amount}</strong></td>
+        <td><span class="badge badge-${order.status}">${order.status.charAt(0).toUpperCase() + order.status.slice(1)}</span></td>
+        <td><span class="badge badge-${order.payment}">${order.payment.charAt(0).toUpperCase() + order.payment.slice(1)}</span></td>
+        <td>${order.date}</td>
+        <td>
+          <button class="btn" style="background:var(--bg-raised); color:var(--spark); border:1px solid var(--line); padding:6px 12px; font-size:0.8rem;" onclick="openDetail('${order.id}')">View</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function updateStats(){
+    const totalOrders = orders.length;
+    const totalRevenue = orders.reduce((sum, o) => o.payment === 'paid' ? sum + o.amount : sum, 0);
+    const pendingAmount = orders.reduce((sum, o) => o.payment === 'pending' ? sum + o.amount : sum, 0);
+    const completed = orders.filter(o => o.status === 'shipped').length;
+
+    document.getElementById('totalOrders').textContent = totalOrders;
+    document.getElementById('totalRevenue').textContent = '$' + totalRevenue;
+    document.getElementById('pendingAmount').textContent = '$' + pendingAmount;
+    document.getElementById('completedOrders').textContent = completed;
+  }
+
+  function openDetail(orderId){
+    const order = orders.find(o => o.id === orderId);
+    if(!order) return;
+
+    currentOrderId = orderId;
+    const modal = document.getElementById('detailModal');
+    const body = document.getElementById('modalBody');
+    const action = document.getElementById('modalAction');
+
+    body.innerHTML = `
+      <p><strong>Order ID:</strong> <code>${order.id}</code></p>
+      <p><strong>Customer:</strong> ${order.customer} (${order.email})</p>
+      <p><strong>Package:</strong> ${order.package}</p>
+      <p><strong>Amount:</strong> <span style="color:var(--spark); font-weight:700;">$${order.amount}</span></p>
+      <p><strong>Status:</strong> <span class="badge badge-${order.status}">${order.status.toUpperCase()}</span></p>
+      <p><strong>Payment Status:</strong> <span class="badge badge-${order.payment}">${order.payment.toUpperCase()}</span></p>
+      <p><strong>Payment Method:</strong> ${order.method.toUpperCase()}</p>
+      <p><strong>Platforms:</strong> ${order.platforms}</p>
+      <p><strong>Notes:</strong> ${order.notes}</p>
+      <p><strong>Ordered:</strong> ${order.date}</p>
+    `;
+
+    action.textContent = order.payment === 'paid' ? 'Update Payment' : 'Mark as Paid';
+    action.onclick = () => openUpdateModal(orderId);
+    
+    modal.classList.add('active');
+  }
+
+  function openUpdateModal(orderId){
+    document.getElementById('detailModal').classList.remove('active');
+    document.getElementById('updateModal').classList.add('active');
+    document.getElementById('updateForm').dataset.orderId = orderId;
+  }
+
+  function updatePaymentStatus(e){
+    e.preventDefault();
+    const orderId = document.getElementById('updateForm').dataset.orderId;
+    const order = orders.find(o => o.id === orderId);
+
+    if(order){
+      order.payment = document.getElementById('paymentStatus').value;
+      order.method = document.getElementById('paymentMethod').value;
+      
+      // Save to localStorage
+      localStorage.setItem('clipforge_orders', JSON.stringify(orders));
+      
+      // Analytics
+      if(window.gtag) gtag('event', 'payment_updated', {order_id: orderId});
+      
+      renderOrders();
+      updateStats();
+      closeModal();
+      alert(`✓ Order ${orderId} payment updated!`);
+    }
+  }
+
+  function closeModal(){
+    document.getElementById('detailModal').classList.remove('active');
+    document.getElementById('updateModal').classList.remove('active');
+  }
+
+  // Export data
+  window.exportData = function(){
+    const csv = [
+      ['Order ID', 'Customer', 'Email', 'Package', 'Amount', 'Status', 'Payment', 'Date'],
+      ...orders.map(o => [o.id, o.customer, o.email, o.package, o.amount, o.status, o.payment, o.date])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `clipforge-payments-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
+  // Close modal on outside click
+  document.addEventListener('click', (e) => {
+    if(e.target.id === 'detailModal') closeModal();
+    if(e.target.id === 'updateModal') closeModal();
+  });
+</script>
+
+</body>
+</html>

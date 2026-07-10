@@ -8,6 +8,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-PLACEHOLDER"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-PLACEHOLDER');
+</script>
+
 <style>
   :root{
     --bg:#121316;
@@ -681,6 +691,15 @@
     const platforms = Array.from(document.querySelectorAll('.chip input:checked')).map(c => c.value).join(', ') || 'Not specified';
 
     const body = `Package: ${pkg}%0D%0AName: ${name}%0D%0AEmail: ${email}%0D%0AFootage link: ${link}%0D%0APlatforms: ${platforms}%0D%0ANotes: ${notes}`;
+    
+    // Track event in Google Analytics
+    if(typeof gtag !== 'undefined'){
+      gtag('event', 'form_submit', {
+        'package': pkg,
+        'platforms': platforms
+      });
+    }
+    
     window.location.href = `mailto:hello@clipforgeai.studio?subject=${encodeURIComponent('New order: ' + pkg)}&body=${body}`;
   });
 
@@ -690,6 +709,31 @@
       input.closest('.chip').classList.toggle('checked', input.checked);
     });
   });
+
+  // Track button clicks for analytics
+  document.querySelectorAll('.btn-primary, .btn-ghost').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if(typeof gtag !== 'undefined'){
+        gtag('event', 'button_click', {
+          'button_text': btn.textContent.trim()
+        });
+      }
+    });
+  });
+
+  // Track section views
+  const sections = document.querySelectorAll('section[id]');
+  const sectionObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting && typeof gtag !== 'undefined'){
+        gtag('event', 'section_view', {
+          'section': entry.target.id
+        });
+        sectionObserver.unobserve(entry.target);
+      }
+    });
+  }, {threshold: 0.25});
+  sections.forEach(section => sectionObserver.observe(section));
 </script>
 
 </body>
